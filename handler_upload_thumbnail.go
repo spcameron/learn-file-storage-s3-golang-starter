@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -41,29 +44,42 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	mediaType := header.Header.Get("Content-Type")
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to read file", err)
-		return
-	}
-
 	video, err := cfg.db.GetVideo(videoID)
 	if video.UserID != userID {
 		respondWithError(w, http.StatusUnauthorized, "User does not have access to this video", err)
 		return
 	}
 
-	tn := thumbnail{
-		data:      data,
-		mediaType: mediaType,
+	mediaType, _, err := mime.ParseMediaType(header.Header.Get("Content-Type"))
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Could not determine file type from request", err)
+		return
+	}
+	if (mediaType != "image/jpeg") && (mediaType != "image/png") {
+		respondWithError(w, http.StatusBadRequest, "Only .png or .jpeg images are allowed", err)
+		return
 	}
 
-	videoThumbnails[videoID] = tn
+	ext, err := mime.ExtensionsByType(mediaType)
 
-	thumbnailURL := fmt.Sprintf("http://localhost:%s/api/thumbnails/%s", cfg.port, videoIDString)
-	video.ThumbnailURL = &thumbnailURL
+	imgFileExtension := ext[0]
+
+	imgFilename := fmt.Sprintf("%s%s", videoIDString, imgFileExtension)
+	imgFilepath := filepath.Join(cfg.assetsRoot, imgFilename)
+	imgFile, err := os.Create(imgFilepath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create file", err)
+		return
+	}
+	defer imgFile.Close()
+	io.Copy(imgFile, file)
+
+	imgURL := fmt.Sprintf("http://localhost:%s/assets/%s%s",
+		cfg.port,
+		videoIDString,
+		imgFileExtension)
+
+	video.ThumbnailURL = &imgURL
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to update video", err)
