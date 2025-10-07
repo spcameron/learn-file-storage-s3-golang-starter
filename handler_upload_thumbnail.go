@@ -38,6 +38,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	const maxMemory = 10 << 20
 	r.ParseMultipartForm(maxMemory)
+	defer r.MultipartForm.RemoveAll()
 
 	file, header, err := r.FormFile("thumbnail")
 	if err != nil {
