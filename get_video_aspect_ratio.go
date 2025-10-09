@@ -17,7 +17,11 @@ func getVideoAspectRatio(filepath string) (string, error) {
 		} `json:"streams"`
 	}
 
-	cmd := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_streams", filepath)
+	cmd := exec.Command(
+		"ffprobe",
+		"-v", "error",
+		"-print_format", "json",
+		"-show_streams", filepath)
 
 	var b bytes.Buffer
 	cmd.Stdout = &b

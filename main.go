@@ -70,6 +70,8 @@ func main() {
 		log.Fatal("S3_BUCKET environment variable is not set")
 	}
 
+	log.Printf("S3_BUCKET var: %s", s3Bucket)
+
 	s3Region := os.Getenv("S3_REGION")
 	if s3Region == "" {
 		log.Fatal("S3_REGION environment variable is not set")
